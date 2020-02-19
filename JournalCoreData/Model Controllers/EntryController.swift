@@ -93,7 +93,6 @@ class EntryController {
     func fetchEntriesFromServer(completion: @escaping (([EntryRepresentation]?, Error?) -> Void) = { _,_ in }) {
         
         let requestURL = baseURL.appendingPathExtension("json")
-        
         URLSession.shared.dataTask(with: requestURL) { (data, _, error) in
             
             if let error = error {
@@ -107,7 +106,6 @@ class EntryController {
                 completion(nil, NSError())
                 return
             }
-
             do {
                 let entryReps = try JSONDecoder().decode([String: EntryRepresentation].self, from: data).map({$0.value})
                 completion(entryReps, nil)
@@ -153,10 +151,11 @@ class EntryController {
         }
     }
     
-    func saveToPersistentStore() {        
+    func saveToPersistentStore(context: NSManagedObjectContext = CoreDataStack.shared.mainContext) {
         do {
-            try CoreDataStack.shared.mainContext.save()
+            try context.save()
         } catch {
+            context.reset()
             NSLog("Error saving managed object context: \(error)")
         }
     }

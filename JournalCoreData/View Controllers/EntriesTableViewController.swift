@@ -11,7 +11,7 @@ import CoreData
 
 class EntriesTableViewController: UITableViewController, NSFetchedResultsControllerDelegate {
     
-    override func viewDidLoad() {
+    override func viewDidLoad() { 
         super.viewDidLoad()
         
         let refreshControl = UIRefreshControl()
@@ -30,6 +30,7 @@ class EntriesTableViewController: UITableViewController, NSFetchedResultsControl
     // MARK: - Actions
     
     @IBAction func refresh(_ sender: Any?) {
+        NSLog("Beginning Refresh")
         refreshControl?.beginRefreshing()
         entryController.refreshEntriesFromServer { error in
             if let error = error {
@@ -40,6 +41,7 @@ class EntriesTableViewController: UITableViewController, NSFetchedResultsControl
             DispatchQueue.main.async {
                 self.tableView.reloadData()
                 self.refreshControl?.endRefreshing()
+                NSLog("Ending Refresh")
             }
         }
     }

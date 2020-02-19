@@ -16,17 +16,27 @@ class CoreDataImporter {
     
     func sync(entries: [EntryRepresentation], completion: @escaping (Error?) -> Void = { _ in }) {
         
+        let identifiers = entries.compactMap { UUID(uuidString: $0.identifier ?? UUID().uuidString) }
+               let fetchRequest: NSFetchRequest<Entry> = Entry.fetchRequest()
+               var repDict = Dictionary(uniqueKeysWithValues: zip(identifiers, entries))
+               fetchRequest.predicate = NSPredicate(format: "identifier IN %@", identifiers)
         self.context.perform {
-            for entryRep in entries {
-                guard let identifier = entryRep.identifier else { continue }
-                
-                let entry = self.fetchSingleEntryFromPersistentStore(with: identifier, in: self.context)
-                if let entry = entry, entry != entryRep {
-                    self.update(entry: entry, with: entryRep)
-                } else if entry == nil {
-                    _ = Entry(entryRepresentation: entryRep, context: self.context)
+            do {
+                let entries = try self.context.fetch(fetchRequest)
+                for entry in entries {
+                    guard let id = UUID(uuidString: entry.identifier ?? ""),
+                    let representation = repDict[id]
+                else { continue }
+                    self.update(entry: entry, with: representation)
+                    repDict.removeValue(forKey: id)
                 }
+                for rep in repDict.values {
+                    let _ = Entry(entryRepresentation: rep)
+                }
+            } catch {
+                completion(NSError(domain: "JournalCoreData.sync", code: 999))
             }
+            try! self.context.save()
             completion(nil)
         }
     }
@@ -37,22 +47,6 @@ class CoreDataImporter {
         entry.mood = entryRep.mood
         entry.timestamp = entryRep.timestamp
         entry.identifier = entryRep.identifier
-    }
-    
-    private func fetchSingleEntryFromPersistentStore(with identifier: String?, in context: NSManagedObjectContext) -> Entry? {
-        
-        guard let identifier = identifier else { return nil }
-        
-        let fetchRequest: NSFetchRequest<Entry> = Entry.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "identifier == %@", identifier)
-        
-        var result: Entry? = nil
-        do {
-            result = try context.fetch(fetchRequest).first
-        } catch {
-            NSLog("Error fetching single entry: \(error)")
-        }
-        return result
     }
     
     let context: NSManagedObjectContext
